@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<title>แจ้งปัญหา</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Kanit:wght@500;600&display=swap">
+<style>
+/* Layout: single-column phone form, big tap targets, sticky send bar */
+:root{--bg:#F3F5F6;--paper:#FFFFFF;--ink:#1B2328;--muted:#5B6870;--line:#D9DFE2;--accent:#0E6E6A;--accent-ink:#FFFFFF;--soft:#E3EFEE;--red:#C62828;--bad-bg:#FDECEC;
+  --f-display:"Kanit","IBM Plex Sans Thai",system-ui,sans-serif;--f-body:"IBM Plex Sans Thai","Noto Sans Thai",system-ui,sans-serif}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#121719;--paper:#1A2124;--ink:#E6ECEE;--muted:#9AA8AE;--line:#2C373B;--accent:#4FB8B1;--accent-ink:#06201F;--soft:#173130;--red:#FF8A80;--bad-bg:#3A1A1A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121719;--paper:#1A2124;--ink:#E6ECEE;--muted:#9AA8AE;--line:#2C373B;--accent:#4FB8B1;--accent-ink:#06201F;--soft:#173130;--red:#FF8A80;--bad-bg:#3A1A1A;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 120px}
+form{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{font-family:var(--f-display);font-weight:600;font-size:24px;margin:0}
+.f{display:flex;flex-direction:column;gap:8px}
+.f>label,.f>.lb{font-weight:600}
+.f .opt{font-weight:400;color:var(--muted);font-size:14px}
+input[type=text],input[type=tel],textarea{font:inherit;font-size:18px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;width:100%}
+textarea{min-height:84px;resize:vertical}
+input:focus,textarea:focus{outline:3px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.kwrap{display:flex;align-items:center;gap:8px}
+.kwrap span{font-family:var(--f-display);font-size:22px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:16px;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:9px 14px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chip:focus-visible,.send:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.recent{font-size:13px;color:var(--muted)}
+.err{color:var(--red);font-size:14px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--line);
+  padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.send{display:block;width:100%;max-width:520px;margin:0 auto;font-family:var(--f-display);font-size:20px;font-weight:600;border:0;border-radius:14px;padding:14px;background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.send:disabled{opacity:.5}
+.preview{background:var(--paper);border:1px dashed var(--line);border-radius:12px;padding:12px 14px;white-space:pre-wrap;font-size:15px}
+.banner{background:var(--bad-bg);border-radius:12px;padding:10px 14px;font-size:14px}
+</style>
+</head>
+<body>
+
+<form id="f" novalidate>
+  <h1>📝 แจ้งปัญหา</h1>
+  <div class="banner" id="banner" hidden></div>
+
+  <div class="f">
+    <label for="k">เครื่อง (K)</label>
+    <div class="kwrap"><span>K</span><input id="k" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="เช่น 12" autocomplete="off"></div>
+    <div class="chips" id="kRecent"></div>
+    <div class="err" id="kErr" hidden>กรุณาใส่เลขเครื่อง</div>
+  </div>
+
+  <div class="f">
+    <label for="part">Part No.</label>
+    <input id="part" type="text" placeholder="เช่น 7B-1234" autocomplete="off" autocapitalize="characters">
+    <div class="chips" id="partRecent"></div>
+    <div class="err" id="partErr" hidden>กรุณาใส่ Part No.</div>
+  </div>
+
+  <div class="f">
+    <div class="lb" id="pLb">ปัญหา</div>
+    <div class="chips" id="probs" role="group" aria-labelledby="pLb"></div>
+    <input id="pOther" type="text" placeholder="พิมพ์ปัญหา" hidden autocomplete="off">
+    <div class="err" id="pErr" hidden>กรุณาเลือกปัญหา</div>
+  </div>
+
+  <div class="f">
+    <div class="lb" id="sLb">สถานะเครื่อง</div>
+    <div class="chips" id="status" role="group" aria-labelledby="sLb"></div>
+  </div>
+
+  <div class="f">
+    <label for="comment">Comment <span class="opt">(ไม่บังคับ)</span></label>
+    <textarea id="comment" placeholder="รายละเอียดเพิ่มเติม"></textarea>
+  </div>
+
+  <div class="f">
+    <div class="lb">ข้อความที่จะส่งเข้ากลุ่ม</div>
+    <div class="preview" id="preview"></div>
+  </div>
+</form>
+<div class="bar"><button class="send" id="send" type="button">ส่งเข้ากลุ่ม</button></div>
+
+<script>
+// ===== แก้รายการได้ตรงนี้ =====
+const LIFF_ID = '';   // ใส่ LIFF ID จาก LINE Developers เช่น '2001234567-AbCdEfGh'
+const PROBLEMS = ['งานติดแม่พิมพ์', 'ครีบ', 'Short shot', 'ฟองอากาศ', 'รอยไหม้', 'งานเสียรูป', 'น้ำมันรั่ว', 'Heater เสีย', 'อื่นๆ'];
+const STATUSES = [['Open', 'เครื่องยังเดิน'], ['เครื่องจอด', 'เครื่องจอด']];
+// ==============================
+(function () {
+  const $ = id => document.getElementById(id);
+  const st = { prob: '', status: 'Open' };
+  const load = k => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch (e) { return []; } };
+  const save = (k, v) => { try { const a = [v].concat(load(k).filter(x => x !== v)).slice(0, 6); localStorage.setItem(k, JSON.stringify(a)); } catch (e) {} };
+
+  function chipRow(el, items, onPick, pressed) {
+    el.innerHTML = '';
+    items.forEach(([val, label]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = label;
+      if (pressed) b.setAttribute('aria-pressed', String(pressed() === val));
+      b.onclick = () => { onPick(val); if (pressed) el.querySelectorAll('.chip').forEach((x, i) => x.setAttribute('aria-pressed', String(items[i][0] === pressed()))); render(); };
+      el.appendChild(b);
+    });
+  }
+  chipRow($('probs'), PROBLEMS.map(p => [p, p]), v => { st.prob = v; $('pOther').hidden = v !== 'อื่นๆ'; if (v === 'อื่นๆ') $('pOther').focus(); }, () => st.prob);
+  chipRow($('status'), STATUSES, v => { st.status = v; }, () => st.status);
+  chipRow($('kRecent'), load('k').map(k => [k, 'K' + k]), v => { $('k').value = v; });
+  chipRow($('partRecent'), load('part').map(p => [p, p]), v => { $('part').value = v; });
+
+  const val = () => ({
+    k: $('k').value.replace(/\D/g, ''),
+    part: $('part').value.trim(),
+    prob: st.prob === 'อื่นๆ' ? $('pOther').value.trim() : st.prob,
+    comment: $('comment').value.trim(),
+  });
+  function text() {
+    const v = val();
+    return ['⚠️ แจ้งปัญหาระหว่างกะ', 'K: ' + v.k, 'Part: ' + v.part, 'Problem: ' + v.prob, 'Status: ' + st.status]
+      .concat(v.comment ? ['Comment: ' + v.comment] : []).join('\n');
+  }
+  function render() { $('preview').textContent = text(); }
+  ['k', 'part', 'pOther', 'comment'].forEach(id => $(id).addEventListener('input', render));
+  render();
+
+  let liffReady = false;
+  const banner = t => { $('banner').textContent = t; $('banner').hidden = !t; };
+  if (window.liff && LIFF_ID) {
+    liff.init({ liffId: LIFF_ID }).then(() => {
+      const ctx = liff.getContext();
+      if (!liff.isInClient() || !ctx || !['group', 'room', 'utou'].includes(ctx.type)) banner('เปิดฟอร์มนี้จากปุ่มในกลุ่ม LINE (บนมือถือ) เพื่อส่งเข้ากลุ่ม');
+      else liffReady = true;
+    }).catch(e => banner('เปิดฟอร์มไม่สำเร็จ: ' + e.message));
+  } else banner('ตัวอย่าง: หน้านี้ไม่ได้เปิดใน LINE กดส่งจะแสดงข้อความเท่านั้น');
+
+  $('send').onclick = async () => {
+    const v = val();
+    $('kErr').hidden = !!v.k; $('partErr').hidden = !!v.part; $('pErr').hidden = !!v.prob;
+    if (!v.k || !v.part || !v.prob) { (!v.k ? $('k') : !v.part ? $('part') : $('probs')).scrollIntoView({ block: 'center' }); return; }
+    save('k', v.k); save('part', v.part);
+    if (!liffReady) { banner('ตัวอย่าง: ข้อความนี้จะถูกส่งเข้ากลุ่มในนามคุณ ↓'); $('preview').scrollIntoView({ block: 'center' }); return; }
+    $('send').disabled = true; $('send').textContent = 'กำลังส่ง…';
+    try { await liff.sendMessages([{ type: 'text', text: text() }]); liff.closeWindow(); }
+    catch (e) { banner('ส่งไม่สำเร็จ: ' + e.message); $('send').disabled = false; $('send').textContent = 'ส่งเข้ากลุ่ม'; }
+  };
+})();
+</script>
+</body>
+</html>
